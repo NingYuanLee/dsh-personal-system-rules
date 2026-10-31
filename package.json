@@ -1,0 +1,81 @@
+{
+  "name": "dsh-personal-system-rules",
+  "version": "0.5.0",
+  "displayName": "个性化规则",
+  "description": "Inject a user-chosen rules file as a system-prompt section, and configure its body plus silent-step and repeated-action guards from the DSH settings dialog or the plugin detail page. Inactive in the minimal preset; nothing is injected when the plugin is disabled or fails to load.",
+  "license": "MIT",
+  "author": "NingYuanLee",
+  "type": "module",
+  "main": "index.js",
+  "icon": "./icon.svg",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "file.js",
+    "loop-guard.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale",
+    "icon.svg",
+    "LICENSE",
+    "CHANGELOG.md",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "system-prompt",
+    "rules",
+    "prompt-injection",
+    "agent-guard",
+    "loop-guard"
+  ],
+  "homepage": "https://github.com/NingYuanLee/dsh-personal-system-rules#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NingYuanLee/dsh-personal-system-rules.git"
+  },
+  "bugs": {
+    "url": "https://github.com/NingYuanLee/dsh-personal-system-rules/issues"
+  },
+  "engines": {
+    "node": ">=22.19.0",
+    "dsh": ">=0.2.1-rc.2 <0.3.0-0"
+  },
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "test": "node --test test/file.test.js test/config.test.js test/loop-guard.test.js test/guards.test.js",
+    "check": "node --check index.js && node --check file.js && node --check loop-guard.js && node --check client.js",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "react": "^18.3.1"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "tag": "latest"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-tool",
+        "@deepseek-ai/dsh-api-settings-controller"
+      ]
+    }
+  }
+}

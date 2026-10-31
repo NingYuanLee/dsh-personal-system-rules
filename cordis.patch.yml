@@ -1,0 +1,3 @@
+- insert:
+    - id: system-agents-md
+      name: dsh-personal-system-rules
