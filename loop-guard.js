@@ -88,3 +88,39 @@ export function repeatStreak(steps) {
 export function countRepeatSteps(agent) {
   return repeatStreak(recentToolSteps(agent))
 }
+
+/**
+ * Steps taken since the newest `todo/write` in the current turn, plus how many
+ * items that list left `in_progress`.
+ *
+ * The todo projection is reset by `turn/start`, so a list that is still
+ * non-empty was necessarily written in this turn. `hasList` is false when the
+ * turn wrote no list yet: the model may be skipping todos on purpose (short
+ * tasks), so callers must not nag in that case.
+ * @param {object} agent live agent (session surface + eventAt)
+ * @returns {{ steps: number, inProgress: number, hasList: boolean }}
+ */
+export function staleTodoSteps(agent) {
+  const nodes = agent?.session?.surface?.nodes
+  if (!Array.isArray(nodes)) return { steps: 0, inProgress: 0, hasList: false }
+  let steps = 0
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    const event = agent.session.eventAt(nodes[index])
+    if (event === undefined) continue
+    if (event.type === 'todo/write') {
+      const todos = Array.isArray(event.data?.todos) ? event.data.todos : []
+      return {
+        steps,
+        inProgress: todos.filter((todo) => todo?.status === 'in_progress').length,
+        hasList: true,
+      }
+    }
+    if (event.type === 'assistant/message') {
+      steps += 1
+      continue
+    }
+    if (event.type === 'turn/start') break
+    if (event.type === 'user/message' && event.data?.source?.kind === 'user') break
+  }
+  return { steps, inProgress: 0, hasList: false }
+}

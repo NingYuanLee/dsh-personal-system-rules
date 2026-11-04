@@ -1,5 +1,17 @@
 # 更新日志
 
+## 0.6.0 — 2026-11-04
+
+- 新增任务状态守卫：本轮的 todo 列表里还有 `in_progress` 项、且连续 `maxStaleTodoSteps` 步没有重写列表时，经 `agent/pre-step` 注入一条提醒；之后每再累积同样步数提醒一次。默认 6 步，`0` 关闭。
+- 本轮没有 todo 列表（短任务可以主动跳过）或列表已全部 `completed` 时都不触发，避免把有意不写列表的任务也当成「没更新」。
+- 设置页「守卫」卡片新增「任务状态」分组，阈值与文案都可在弹窗编辑，文案支持 `{count}`（未更新步数）与 `{inProgress}`（进行中项数）。
+- 检测逻辑新增纯函数 `staleTodoSteps()`，`test/loop-guard.test.js` 与 `test/guards.test.js` 各有覆盖。
+
+## 0.5.1 — 2026-11-04
+
+- 声明并验证对 DeepSeek Harness 0.2.2 预发布版的支持：`settings.section` 与 `plugins.bundle.config` 的注册契约、`describe/mutate` 设置读写、locale 的 `register(ns, {zh, en})` 形式、`loader/volatile-update` 热更新路径在 0.2.2 均未变。`engines.dsh` 已覆盖该版本。
+- 不使用 Session Projection、spill 策略或 `dsh-fs-observation-policy`，因此 0.2.2 对这几项的改动不命中本插件。无代码改动，已用 DSH 0.2.2-rc.1 内核验证加载与全部测试。
+
 ## 0.5.0 — 2026-10-31
 
 - 新增循环检测守卫：连续执行完全相同的工具调用达到 `repeatLimit` 时，按 `repeatAction` 提醒或中止本轮。

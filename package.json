@@ -1,8 +1,8 @@
 {
   "name": "dsh-personal-system-rules",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "displayName": "个性化规则",
-  "description": "Inject a user-chosen rules file as a system-prompt section, and configure its body plus silent-step and repeated-action guards from the DSH settings dialog or the plugin detail page. Inactive in the minimal preset; nothing is injected when the plugin is disabled or fails to load.",
+  "description": "Inject a user-chosen rules file as a system-prompt section, and configure its body plus silent-step, repeated-action and stale-todo guards from the DSH settings dialog or the plugin detail page. Inactive in the minimal preset; nothing is injected when the plugin is disabled or fails to load.",
   "license": "MIT",
   "author": "NingYuanLee",
   "type": "module",

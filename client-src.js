@@ -15,6 +15,8 @@ window.__ModuleLoader__.load({
     const DEFAULT_REMINDER = '你已经连续 {count} 步没有向用户说明进展。请在本步开头用一句话说明正在做什么、为什么，再继续调用工具。'
     /** Mirrors DEFAULT_REPEAT_REMINDER on the host side, for the placeholder. */
     const DEFAULT_REPEAT_REMINDER = '你已经连续 {count} 步执行完全相同的操作。请停止重复：先说明当前阻塞和已完成的部分，再换一种做法；如果确实需要继续同一操作，请先向用户说明原因。'
+    /** Mirrors DEFAULT_STALE_TODO_REMINDER on the host side, for the placeholder. */
+    const DEFAULT_STALE_TODO_REMINDER = '任务列表里有 {inProgress} 项仍标着进行中，但已连续 {count} 步没有更新。请重写 todo 列表：把已完成的项标成 completed，只留下真正在做的一项，再继续。'
 
     const zh = {
       nav: '个性化规则',
@@ -37,6 +39,11 @@ window.__ModuleLoader__.load({
       loopActionStop: '直接叫停本轮',
       loopReminderLabel: '提醒文案',
       loopReminderHint: '可用 {count} 表示已重复的步数；留空使用默认文案。',
+      staleTitle: '任务状态',
+      staleStepsLabel: '任务列表未更新的步数阈值',
+      staleStepsHint: '列表里还有「进行中」的项、且连续这么多步没有重写 todo 时提醒；0 表示关闭。默认 6。',
+      staleReminderLabel: '提醒文案',
+      staleReminderHint: '可用 {count} 表示未更新的步数、{inProgress} 表示进行中的项数；留空使用默认文案。',
       invalidLimit: '重复次数必须是不小于 0 的整数。',
       saveGuard: '保存守卫',
       savingGuard: '保存中',
@@ -85,6 +92,11 @@ window.__ModuleLoader__.load({
       loopActionStop: 'Stop this turn',
       loopReminderLabel: 'Reminder text',
       loopReminderHint: 'Use {count} for the repeated step count; leave blank for the default.',
+      staleTitle: 'Task status',
+      staleStepsLabel: 'Steps without a todo update',
+      staleStepsHint: 'Triggers while the list still has items in progress and it has not been rewritten for this many steps; 0 disables it. Default 6.',
+      staleReminderLabel: 'Reminder text',
+      staleReminderHint: 'Use {count} for the stale step count and {inProgress} for the in-progress items; leave blank for the default.',
       invalidLimit: 'The repeat limit must be an integer of 0 or more.',
       saveGuard: 'Save guards',
       savingGuard: 'Saving',
@@ -213,6 +225,7 @@ window.__ModuleLoader__.load({
       const area = useRef(null)
       const reminderArea = useRef(null)
       const loopArea = useRef(null)
+      const staleArea = useRef(null)
       const request = useRef(0)
 
       // Settings config state: rules body stays on the file service; the guard
@@ -227,6 +240,8 @@ window.__ModuleLoader__.load({
       const [repeatLimitDraft, setRepeatLimitDraft] = useState('')
       const [repeatActionDraft, setRepeatActionDraft] = useState('remind')
       const [loopReminderDraft, setLoopReminderDraft] = useState('')
+      const [staleStepsDraft, setStaleStepsDraft] = useState('')
+      const [staleReminderDraft, setStaleReminderDraft] = useState('')
 
       function applyLoaded(value) {
         setPath(value.path || '')
@@ -301,6 +316,8 @@ window.__ModuleLoader__.load({
           setRepeatLimitDraft(Number.isFinite(value.repeatLimit) && value.repeatLimit > 0 ? String(value.repeatLimit) : '')
           setRepeatActionDraft(value.repeatAction === 'stop' ? 'stop' : 'remind')
           setLoopReminderDraft(typeof value.repeatReminder === 'string' ? value.repeatReminder : '')
+          setStaleStepsDraft(Number.isFinite(value.maxStaleTodoSteps) && value.maxStaleTodoSteps > 0 ? String(value.maxStaleTodoSteps) : '')
+          setStaleReminderDraft(typeof value.staleTodoReminder === 'string' ? value.staleTodoReminder : '')
           setRevision(Number.isFinite(row.revision) ? row.revision : 0)
           setConfigPhase('ready')
         } catch (error) {
@@ -409,6 +426,16 @@ window.__ModuleLoader__.load({
         }
         const reminder = reminderDraft.trim() === '' ? '' : reminderDraft
         const loopReminder = loopReminderDraft.trim() === '' ? '' : loopReminderDraft
+        const staleText = staleStepsDraft.trim()
+        let staleSteps = 0
+        if (staleText !== '') {
+          staleSteps = Number(staleText)
+          if (!Number.isInteger(staleSteps) || staleSteps < 0) {
+            setConfigNote({ tone: 'error', text: tr('invalidSteps') })
+            return
+          }
+        }
+        const staleReminder = staleReminderDraft.trim() === '' ? '' : staleReminderDraft
         const action = repeatActionDraft === 'stop' ? 'stop' : 'remind'
         const ops = [
           stepsText === '' ? { op: 'unset', path: ['maxSilentSteps'] } : { op: 'set', path: ['maxSilentSteps'], value: steps },
@@ -416,6 +443,8 @@ window.__ModuleLoader__.load({
           limitText === '' ? { op: 'unset', path: ['repeatLimit'] } : { op: 'set', path: ['repeatLimit'], value: limit },
           action === 'remind' ? { op: 'unset', path: ['repeatAction'] } : { op: 'set', path: ['repeatAction'], value: action },
           loopReminder === '' ? { op: 'unset', path: ['repeatReminder'] } : { op: 'set', path: ['repeatReminder'], value: loopReminder },
+          staleText === '' ? { op: 'unset', path: ['maxStaleTodoSteps'] } : { op: 'set', path: ['maxStaleTodoSteps'], value: staleSteps },
+          staleReminder === '' ? { op: 'unset', path: ['staleTodoReminder'] } : { op: 'set', path: ['staleTodoReminder'], value: staleReminder },
         ]
         setOptionsBusy(true)
         setConfigNote(null)
@@ -433,6 +462,8 @@ window.__ModuleLoader__.load({
             setRepeatLimitDraft(Number.isFinite(view.value.repeatLimit) && view.value.repeatLimit > 0 ? String(view.value.repeatLimit) : '')
             setRepeatActionDraft(view.value.repeatAction === 'stop' ? 'stop' : 'remind')
             setLoopReminderDraft(typeof view.value.repeatReminder === 'string' ? view.value.repeatReminder : '')
+            setStaleStepsDraft(Number.isFinite(view.value.maxStaleTodoSteps) && view.value.maxStaleTodoSteps > 0 ? String(view.value.maxStaleTodoSteps) : '')
+            setStaleReminderDraft(typeof view.value.staleTodoReminder === 'string' ? view.value.staleTodoReminder : '')
           }
           setConfigNote({ tone: 'ok', text: tr('guardSaved') })
         } catch (error) {
@@ -574,6 +605,32 @@ window.__ModuleLoader__.load({
             onChange: (event) => { setLoopReminderDraft(event.target.value); setConfigNote(null) },
           })),
         h('p', { className: 'dsh-agents-md-hint' }, tr('loopReminderHint')),
+        h('p', { className: 'dsh-agents-md-group' }, tr('staleTitle')),
+        h('label', { className: 'dsh-agents-md-label' },
+          tr('staleStepsLabel'),
+          h('input', {
+            className: 'dsh-agents-md-field',
+            type: 'number',
+            min: '0',
+            step: '1',
+            value: staleStepsDraft,
+            disabled: optionsBusy || configPhase !== 'ready',
+            onChange: (event) => { setStaleStepsDraft(event.target.value); setConfigNote(null) },
+          })),
+        h('p', { className: 'dsh-agents-md-hint' }, tr('staleStepsHint')),
+        h('label', { className: 'dsh-agents-md-label' },
+          tr('staleReminderLabel'),
+          h('textarea', {
+            ref: staleArea,
+            className: 'dsh-agents-md-field dsh-agents-md-field-area',
+            rows: 3,
+            value: staleReminderDraft,
+            spellCheck: false,
+            disabled: optionsBusy || configPhase !== 'ready',
+            placeholder: DEFAULT_STALE_TODO_REMINDER,
+            onChange: (event) => { setStaleReminderDraft(event.target.value); setConfigNote(null) },
+          })),
+        h('p', { className: 'dsh-agents-md-hint' }, tr('staleReminderHint')),
         configNote ? h('p', {
           className: configNote.tone === 'ok' ? 'dsh-agents-md-ok' : 'dsh-agents-md-error',
           role: configNote.tone === 'ok' ? 'status' : 'alert',

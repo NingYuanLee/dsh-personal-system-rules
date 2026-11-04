@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { countRepeatSteps, messageSignatures, recentToolSteps, repeatStreak, stableArguments } from '../loop-guard.js'
+import { countRepeatSteps, messageSignatures, recentToolSteps, repeatStreak, stableArguments, staleTodoSteps } from '../loop-guard.js'
 
 function fakeAgent(events) {
   return {
@@ -80,4 +80,43 @@ test('a different call or a text-only answer ends the streak', () => {
 test('repeatStreak ignores an empty step list', () => {
   assert.deepEqual(repeatStreak([]), { streak: 0, signature: '' })
   assert.equal(recentToolSteps(fakeAgent([])).length, 0)
+})
+
+function todoWrite(todos) {
+  return { type: 'todo/write', data: { todos } }
+}
+
+test('staleTodoSteps reports the steps since the newest list and its in-progress count', () => {
+  const agent = fakeAgent([
+    turnStart,
+    todoWrite([{ content: 'a', status: 'in_progress' }, { content: 'b', status: 'pending' }]),
+    assistant(['read', '{"file_path":"a.md"}']),
+    assistant(['read', '{"file_path":"b.md"}']),
+    assistant(['read', '{"file_path":"c.md"}']),
+  ])
+  assert.deepEqual(staleTodoSteps(agent), { steps: 3, inProgress: 1, hasList: true })
+})
+
+test('staleTodoSteps reports no list when the turn wrote none', () => {
+  const agent = fakeAgent([turnStart, assistant(['read', '{"file_path":"a.md"}']), assistant(['read', '{"file_path":"b.md"}'])])
+  const found = staleTodoSteps(agent)
+  assert.equal(found.hasList, false)
+  assert.equal(found.inProgress, 0)
+  assert.equal(found.steps, 2)
+})
+
+test('staleTodoSteps counts nothing in progress once every item is completed', () => {
+  const agent = fakeAgent([turnStart, todoWrite([{ content: 'a', status: 'completed' }]), assistant(['read', '{"file_path":"a.md"}'])])
+  assert.deepEqual(staleTodoSteps(agent), { steps: 1, inProgress: 0, hasList: true })
+})
+
+test('staleTodoSteps stops at the turn boundary and ignores an older turn list', () => {
+  const agent = fakeAgent([
+    turnStart,
+    todoWrite([{ content: 'old', status: 'in_progress' }]),
+    assistant(['read', '{"file_path":"a.md"}']),
+    turnStart,
+    assistant(['read', '{"file_path":"b.md"}']),
+  ])
+  assert.deepEqual(staleTodoSteps(agent), { steps: 1, inProgress: 0, hasList: false })
 })

@@ -10,6 +10,7 @@ const READ = "systemAgentsMd/read";
 const WRITE = "systemAgentsMd/write";
 const DEFAULT_REMINDER = "\u4F60\u5DF2\u7ECF\u8FDE\u7EED {count} \u6B65\u6CA1\u6709\u5411\u7528\u6237\u8BF4\u660E\u8FDB\u5C55\u3002\u8BF7\u5728\u672C\u6B65\u5F00\u5934\u7528\u4E00\u53E5\u8BDD\u8BF4\u660E\u6B63\u5728\u505A\u4EC0\u4E48\u3001\u4E3A\u4EC0\u4E48\uFF0C\u518D\u7EE7\u7EED\u8C03\u7528\u5DE5\u5177\u3002";
 const DEFAULT_REPEAT_REMINDER = "\u4F60\u5DF2\u7ECF\u8FDE\u7EED {count} \u6B65\u6267\u884C\u5B8C\u5168\u76F8\u540C\u7684\u64CD\u4F5C\u3002\u8BF7\u505C\u6B62\u91CD\u590D\uFF1A\u5148\u8BF4\u660E\u5F53\u524D\u963B\u585E\u548C\u5DF2\u5B8C\u6210\u7684\u90E8\u5206\uFF0C\u518D\u6362\u4E00\u79CD\u505A\u6CD5\uFF1B\u5982\u679C\u786E\u5B9E\u9700\u8981\u7EE7\u7EED\u540C\u4E00\u64CD\u4F5C\uFF0C\u8BF7\u5148\u5411\u7528\u6237\u8BF4\u660E\u539F\u56E0\u3002";
+const DEFAULT_STALE_TODO_REMINDER = "\u4EFB\u52A1\u5217\u8868\u91CC\u6709 {inProgress} \u9879\u4ECD\u6807\u7740\u8FDB\u884C\u4E2D\uFF0C\u4F46\u5DF2\u8FDE\u7EED {count} \u6B65\u6CA1\u6709\u66F4\u65B0\u3002\u8BF7\u91CD\u5199 todo \u5217\u8868\uFF1A\u628A\u5DF2\u5B8C\u6210\u7684\u9879\u6807\u6210 completed\uFF0C\u53EA\u7559\u4E0B\u771F\u6B63\u5728\u505A\u7684\u4E00\u9879\uFF0C\u518D\u7EE7\u7EED\u3002";
 const zh = {
   nav: "\u4E2A\u6027\u5316\u89C4\u5219",
   title: "\u4E2A\u6027\u5316\u89C4\u5219",
@@ -31,6 +32,11 @@ const zh = {
   loopActionStop: "\u76F4\u63A5\u53EB\u505C\u672C\u8F6E",
   loopReminderLabel: "\u63D0\u9192\u6587\u6848",
   loopReminderHint: "\u53EF\u7528 {count} \u8868\u793A\u5DF2\u91CD\u590D\u7684\u6B65\u6570\uFF1B\u7559\u7A7A\u4F7F\u7528\u9ED8\u8BA4\u6587\u6848\u3002",
+  staleTitle: "\u4EFB\u52A1\u72B6\u6001",
+  staleStepsLabel: "\u4EFB\u52A1\u5217\u8868\u672A\u66F4\u65B0\u7684\u6B65\u6570\u9608\u503C",
+  staleStepsHint: "\u5217\u8868\u91CC\u8FD8\u6709\u300C\u8FDB\u884C\u4E2D\u300D\u7684\u9879\u3001\u4E14\u8FDE\u7EED\u8FD9\u4E48\u591A\u6B65\u6CA1\u6709\u91CD\u5199 todo \u65F6\u63D0\u9192\uFF1B0 \u8868\u793A\u5173\u95ED\u3002\u9ED8\u8BA4 6\u3002",
+  staleReminderLabel: "\u63D0\u9192\u6587\u6848",
+  staleReminderHint: "\u53EF\u7528 {count} \u8868\u793A\u672A\u66F4\u65B0\u7684\u6B65\u6570\u3001{inProgress} \u8868\u793A\u8FDB\u884C\u4E2D\u7684\u9879\u6570\uFF1B\u7559\u7A7A\u4F7F\u7528\u9ED8\u8BA4\u6587\u6848\u3002",
   invalidLimit: "\u91CD\u590D\u6B21\u6570\u5FC5\u987B\u662F\u4E0D\u5C0F\u4E8E 0 \u7684\u6574\u6570\u3002",
   saveGuard: "\u4FDD\u5B58\u5B88\u536B",
   savingGuard: "\u4FDD\u5B58\u4E2D",
@@ -78,6 +84,11 @@ const en = {
   loopActionStop: "Stop this turn",
   loopReminderLabel: "Reminder text",
   loopReminderHint: "Use {count} for the repeated step count; leave blank for the default.",
+  staleTitle: "Task status",
+  staleStepsLabel: "Steps without a todo update",
+  staleStepsHint: "Triggers while the list still has items in progress and it has not been rewritten for this many steps; 0 disables it. Default 6.",
+  staleReminderLabel: "Reminder text",
+  staleReminderHint: "Use {count} for the stale step count and {inProgress} for the in-progress items; leave blank for the default.",
   invalidLimit: "The repeat limit must be an integer of 0 or more.",
   saveGuard: "Save guards",
   savingGuard: "Saving",
@@ -191,6 +202,7 @@ function RulesSection(props) {
   const area = useRef(null);
   const reminderArea = useRef(null);
   const loopArea = useRef(null);
+  const staleArea = useRef(null);
   const request = useRef(0);
   const [configPhase, setConfigPhase] = useState("loading");
   const [configNs, setConfigNs] = useState(SETTINGS_NS);
@@ -202,6 +214,8 @@ function RulesSection(props) {
   const [repeatLimitDraft, setRepeatLimitDraft] = useState("");
   const [repeatActionDraft, setRepeatActionDraft] = useState("remind");
   const [loopReminderDraft, setLoopReminderDraft] = useState("");
+  const [staleStepsDraft, setStaleStepsDraft] = useState("");
+  const [staleReminderDraft, setStaleReminderDraft] = useState("");
   function applyLoaded(value) {
     setPath(value.path || "");
     setDraft(value.text || "");
@@ -273,6 +287,8 @@ function RulesSection(props) {
       setRepeatLimitDraft(Number.isFinite(value.repeatLimit) && value.repeatLimit > 0 ? String(value.repeatLimit) : "");
       setRepeatActionDraft(value.repeatAction === "stop" ? "stop" : "remind");
       setLoopReminderDraft(typeof value.repeatReminder === "string" ? value.repeatReminder : "");
+      setStaleStepsDraft(Number.isFinite(value.maxStaleTodoSteps) && value.maxStaleTodoSteps > 0 ? String(value.maxStaleTodoSteps) : "");
+      setStaleReminderDraft(typeof value.staleTodoReminder === "string" ? value.staleTodoReminder : "");
       setRevision(Number.isFinite(row.revision) ? row.revision : 0);
       setConfigPhase("ready");
     } catch (error) {
@@ -374,13 +390,25 @@ function RulesSection(props) {
     }
     const reminder = reminderDraft.trim() === "" ? "" : reminderDraft;
     const loopReminder = loopReminderDraft.trim() === "" ? "" : loopReminderDraft;
+    const staleText = staleStepsDraft.trim();
+    let staleSteps = 0;
+    if (staleText !== "") {
+      staleSteps = Number(staleText);
+      if (!Number.isInteger(staleSteps) || staleSteps < 0) {
+        setConfigNote({ tone: "error", text: tr("invalidSteps") });
+        return;
+      }
+    }
+    const staleReminder = staleReminderDraft.trim() === "" ? "" : staleReminderDraft;
     const action = repeatActionDraft === "stop" ? "stop" : "remind";
     const ops = [
       stepsText === "" ? { op: "unset", path: ["maxSilentSteps"] } : { op: "set", path: ["maxSilentSteps"], value: steps },
       reminder === "" ? { op: "unset", path: ["silentReminder"] } : { op: "set", path: ["silentReminder"], value: reminder },
       limitText === "" ? { op: "unset", path: ["repeatLimit"] } : { op: "set", path: ["repeatLimit"], value: limit },
       action === "remind" ? { op: "unset", path: ["repeatAction"] } : { op: "set", path: ["repeatAction"], value: action },
-      loopReminder === "" ? { op: "unset", path: ["repeatReminder"] } : { op: "set", path: ["repeatReminder"], value: loopReminder }
+      loopReminder === "" ? { op: "unset", path: ["repeatReminder"] } : { op: "set", path: ["repeatReminder"], value: loopReminder },
+      staleText === "" ? { op: "unset", path: ["maxStaleTodoSteps"] } : { op: "set", path: ["maxStaleTodoSteps"], value: staleSteps },
+      staleReminder === "" ? { op: "unset", path: ["staleTodoReminder"] } : { op: "set", path: ["staleTodoReminder"], value: staleReminder }
     ];
     setOptionsBusy(true);
     setConfigNote(null);
@@ -398,6 +426,8 @@ function RulesSection(props) {
         setRepeatLimitDraft(Number.isFinite(view.value.repeatLimit) && view.value.repeatLimit > 0 ? String(view.value.repeatLimit) : "");
         setRepeatActionDraft(view.value.repeatAction === "stop" ? "stop" : "remind");
         setLoopReminderDraft(typeof view.value.repeatReminder === "string" ? view.value.repeatReminder : "");
+        setStaleStepsDraft(Number.isFinite(view.value.maxStaleTodoSteps) && view.value.maxStaleTodoSteps > 0 ? String(view.value.maxStaleTodoSteps) : "");
+        setStaleReminderDraft(typeof view.value.staleTodoReminder === "string" ? view.value.staleTodoReminder : "");
       }
       setConfigNote({ tone: "ok", text: tr("guardSaved") });
     } catch (error) {
@@ -586,6 +616,44 @@ function RulesSection(props) {
       })
     ),
     h("p", { className: "dsh-agents-md-hint" }, tr("loopReminderHint")),
+    h("p", { className: "dsh-agents-md-group" }, tr("staleTitle")),
+    h(
+      "label",
+      { className: "dsh-agents-md-label" },
+      tr("staleStepsLabel"),
+      h("input", {
+        className: "dsh-agents-md-field",
+        type: "number",
+        min: "0",
+        step: "1",
+        value: staleStepsDraft,
+        disabled: optionsBusy || configPhase !== "ready",
+        onChange: (event) => {
+          setStaleStepsDraft(event.target.value);
+          setConfigNote(null);
+        }
+      })
+    ),
+    h("p", { className: "dsh-agents-md-hint" }, tr("staleStepsHint")),
+    h(
+      "label",
+      { className: "dsh-agents-md-label" },
+      tr("staleReminderLabel"),
+      h("textarea", {
+        ref: staleArea,
+        className: "dsh-agents-md-field dsh-agents-md-field-area",
+        rows: 3,
+        value: staleReminderDraft,
+        spellCheck: false,
+        disabled: optionsBusy || configPhase !== "ready",
+        placeholder: DEFAULT_STALE_TODO_REMINDER,
+        onChange: (event) => {
+          setStaleReminderDraft(event.target.value);
+          setConfigNote(null);
+        }
+      })
+    ),
+    h("p", { className: "dsh-agents-md-hint" }, tr("staleReminderHint")),
     configNote ? h("p", {
       className: configNote.tone === "ok" ? "dsh-agents-md-ok" : "dsh-agents-md-error",
       role: configNote.tone === "ok" ? "status" : "alert"

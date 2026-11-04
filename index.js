@@ -4,7 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { MAX_BYTES, readAgentsFile, writeAgentsFile } from './file.js'
-import { countRepeatSteps } from './loop-guard.js'
+import { countRepeatSteps, staleTodoSteps } from './loop-guard.js'
 
 /** Cordis plugin name. */
 export const name = 'system-agents-md'
@@ -15,6 +15,7 @@ export const inject = ['systemPrompt']
 const SECTION_NAME = 'user:agents-md'
 const DEFAULT_ORDER = 10150
 const DEFAULT_MAX_SILENT_STEPS = 2
+const DEFAULT_MAX_STALE_TODO_STEPS = 6
 const DEFAULT_RULES_FILE = 'PERSONAL-SYSTEM-RULES.md'
 const DEFAULT_HEADER = [
   '# 用户全局系统层规则',
@@ -27,6 +28,9 @@ const DEFAULT_SILENT_REMINDER = '你已经连续 {count} 步没有向用户说�
 
 /** Default reminder used when the same tool call repeats beyond the limit. */
 const DEFAULT_REPEAT_REMINDER = '你已经连续 {count} 步执行完全相同的操作。请停止重复：先说明当前阻塞和已完成的部分，再换一种做法；如果确实需要继续同一操作，请先向用户说明原因。'
+
+/** Default reminder used when the task list stops moving while items stay in progress. */
+const DEFAULT_STALE_TODO_REMINDER = '任务列表里有 {inProgress} 项仍标着进行中，但已连续 {count} 步没有更新。请重写 todo 列表：把已完成的项标成 completed，只留下真正在做的一项，再继续。'
 
 /** Wire namespace for the detail-page editor and the settings dialog. */
 export const FILE_SERVICE = 'systemAgentsMd'
@@ -71,6 +75,8 @@ async function loadConfigSchema() {
     repeatLimit: z.number().min(0).default(0).volatile(),
     repeatAction: z.union([z.const('remind'), z.const('stop')]).default('remind').volatile(),
     repeatReminder: z.string().default('').volatile(),
+    maxStaleTodoSteps: z.number().min(0).default(DEFAULT_MAX_STALE_TODO_STEPS).volatile(),
+    staleTodoReminder: z.string().default('').volatile(),
   })
 }
 
@@ -139,7 +145,22 @@ function resolveSettings(config = {}) {
   const repeatAction = unwrapVolatile(config.repeatAction) === 'stop' ? 'stop' : 'remind'
   const repeatReminderValue = unwrapVolatile(config.repeatReminder)
   const repeatTemplate = typeof repeatReminderValue === 'string' && repeatReminderValue.trim() ? repeatReminderValue : DEFAULT_REPEAT_REMINDER
-  return { file, order, header, maxSilentSteps, silentTemplate, repeatLimit, repeatAction, repeatTemplate }
+  const staleStepsValue = Number(unwrapVolatile(config.maxStaleTodoSteps))
+  const maxStaleTodoSteps = Number.isFinite(staleStepsValue) ? Math.max(0, Math.floor(staleStepsValue)) : DEFAULT_MAX_STALE_TODO_STEPS
+  const staleReminderValue = unwrapVolatile(config.staleTodoReminder)
+  const staleTemplate = typeof staleReminderValue === 'string' && staleReminderValue.trim() ? staleReminderValue : DEFAULT_STALE_TODO_REMINDER
+  return {
+    file,
+    order,
+    header,
+    maxSilentSteps,
+    silentTemplate,
+    repeatLimit,
+    repeatAction,
+    repeatTemplate,
+    maxStaleTodoSteps,
+    staleTemplate,
+  }
 }
 
 /**
@@ -345,14 +366,17 @@ export function apply(ctx, config = {}) {
     }
   }, 'system-agents-md.section')
 
-  // One pre-step hook drives both guards:
+  // One pre-step hook drives three guards:
   // - silent guard: consecutive steps without visible text;
   // - loop guard: consecutive identical tool-call steps (remind, or stop the
-  //   turn the way the user's own stop does, keeping queued input).
+  //   turn the way the user's own stop does, keeping queued input);
+  // - stale-todo guard: a task list left with `in_progress` items that the
+  //   model has not rewritten for several steps.
   // Settings edits are volatile, so `current` is read on every step. A guard
   // disabled with 0 resets its own per-agent state.
   const silentRemindedAt = new WeakMap()
   const repeatState = new WeakMap()
+  const staleRemindedAt = new WeakMap()
   ctx.effect(() => ctx.on('agent/pre-step', async (payload, next) => {
     const decision = await next()
     if (decision.kind === 'reject') return decision
@@ -398,6 +422,30 @@ export function apply(ctx, config = {}) {
         additions.push(createUserMessage({
           content: [{ type: 'text', text: current.repeatTemplate.replaceAll('{count}', String(found.streak)) }],
           source: { kind: 'system-agents-md', form: 'notice', summary: found.streak + ' repeated identical tool calls' },
+        }))
+      }
+    }
+
+    const staleLimit = current.maxStaleTodoSteps
+    if (staleLimit <= 0) {
+      staleRemindedAt.delete(agent)
+    } else {
+      const stale = staleTodoSteps(agent)
+      if (!stale.hasList || stale.inProgress === 0 || stale.steps < staleLimit) {
+        staleRemindedAt.delete(agent)
+      } else if (stale.steps >= (staleRemindedAt.get(agent) ?? 0) + staleLimit) {
+        // One reminder per staleLimit further steps: the counter cannot drop
+        // until the model rewrites the list, so a plain `> last` would nag on
+        // every following step.
+        staleRemindedAt.set(agent, stale.steps)
+        additions.push(createUserMessage({
+          content: [{
+            type: 'text',
+            text: current.staleTemplate
+              .replaceAll('{count}', String(stale.steps))
+              .replaceAll('{inProgress}', String(stale.inProgress)),
+          }],
+          source: { kind: 'system-agents-md', form: 'notice', summary: stale.steps + ' steps since the last todo update' },
         }))
       }
     }
