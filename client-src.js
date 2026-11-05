@@ -12,7 +12,7 @@ window.__ModuleLoader__.load({
     const READ = 'systemAgentsMd/read'
     const WRITE = 'systemAgentsMd/write'
     /** Mirrors DEFAULT_SILENT_REMINDER on the host side, for the placeholder. */
-    const DEFAULT_REMINDER = '你已经连续 {count} 步没有向用户说明进展。请在本步开头用一句话说明正在做什么、为什么，再继续调用工具。'
+    const DEFAULT_REMINDER = '你已经 {count} 秒没有向用户说明进展。请在本步开头用一句话说明正在做什么、为什么，再继续调用工具。'
     /** Mirrors DEFAULT_REPEAT_REMINDER on the host side, for the placeholder. */
     const DEFAULT_REPEAT_REMINDER = '你已经连续 {count} 步执行完全相同的操作。请停止重复：先说明当前阻塞和已完成的部分，再换一种做法；如果确实需要继续同一操作，请先向用户说明原因。'
     /** Mirrors DEFAULT_STALE_TODO_REMINDER on the host side, for the placeholder. */
@@ -27,10 +27,10 @@ window.__ModuleLoader__.load({
       rulesTitle: '规则正文',
       guardTitle: '守卫',
       silentTitle: '静默提醒',
-      guardStepsLabel: '连续无可见文本的步数阈值',
-      guardStepsHint: '达到该步数时提醒一次；0 表示关闭。默认 2。',
+      guardStepsLabel: '多久没有可见输出就提醒（秒）',
+      guardStepsHint: '达到该时长时提醒一次，之后每再满同样时长提醒一次；0 表示关闭。默认 60 秒。',
       guardReminderLabel: '提醒文案',
-      guardReminderHint: '可用 {count} 表示当前连续步数；留空使用默认文案。',
+      guardReminderHint: '可用 {count} 表示当前已静默的秒数；留空使用默认文案。',
       loopTitle: '循环检测',
       loopLimitLabel: '同一操作的最大重复次数',
       loopLimitHint: '连续这么多步执行完全相同的工具调用时触发；0 表示关闭，默认关闭。',
@@ -53,7 +53,7 @@ window.__ModuleLoader__.load({
       optionsMissing: '没有找到这个插件的设置命名空间，先按默认值显示。',
       optionsLoadFailed: '读取已保存配置失败，先按默认值显示：{message}',
       optionsFailed: '保存失败：{message}',
-      invalidSteps: '步数阈值必须是不小于 0 的整数。',
+      invalidSteps: '静默阈值必须是不小于 0 的整数（秒）。',
       reload: '重新读取',
       save: '保存',
       saving: '保存中',
@@ -79,11 +79,11 @@ window.__ModuleLoader__.load({
       effective: 'Effective file',
       rulesTitle: 'Rules body',
       guardTitle: 'Guards',
-      silentTitle: 'Silent-step reminder',
-      guardStepsLabel: 'Consecutive steps without visible text',
-      guardStepsHint: 'Reminds once when reached; 0 disables it. Default 2.',
+      silentTitle: 'Silent reminder',
+      guardStepsLabel: 'Seconds without visible output before reminding',
+      guardStepsHint: 'Reminds once when reached, then once per further interval; 0 disables it. Default 60 seconds.',
       guardReminderLabel: 'Reminder text',
-      guardReminderHint: 'Use {count} for the current streak; leave blank for the default.',
+      guardReminderHint: 'Use {count} for the seconds of silence; leave blank for the default.',
       loopTitle: 'Loop detection',
       loopLimitLabel: 'Maximum repeats of the same action',
       loopLimitHint: 'Triggers after this many consecutive identical tool-call steps; 0 disables it (default).',
@@ -106,7 +106,7 @@ window.__ModuleLoader__.load({
       optionsMissing: 'This plugin has no settings namespace here; showing defaults.',
       optionsLoadFailed: 'Failed to read the saved config; showing defaults: {message}',
       optionsFailed: 'Save failed: {message}',
-      invalidSteps: 'The step threshold must be an integer of 0 or more.',
+      invalidSteps: 'The silence threshold must be an integer of 0 or more (seconds).',
       reload: 'Reload',
       save: 'Save',
       saving: 'Saving',
@@ -197,7 +197,7 @@ window.__ModuleLoader__.load({
       return rows.find((row) => {
         const value = row?.value && typeof row.value === 'object' ? row.value : row
         return value !== null && typeof value === 'object'
-          && (typeof value.maxSilentSteps === 'number' || typeof value.silentReminder === 'string')
+          && (typeof value.maxSilentSeconds === 'number' || typeof value.silentReminder === 'string')
       }) ?? null
     }
 
@@ -311,7 +311,7 @@ window.__ModuleLoader__.load({
           }
           const value = row.value && typeof row.value === 'object' && !Array.isArray(row.value) ? row.value : {}
           setConfigNs(typeof row.ns === 'string' && row.ns ? row.ns : SETTINGS_NS)
-          setStepsDraft(Number.isFinite(value.maxSilentSteps) ? String(value.maxSilentSteps) : '')
+          setStepsDraft(Number.isFinite(value.maxSilentSeconds) ? String(value.maxSilentSeconds) : '')
           setReminderDraft(typeof value.silentReminder === 'string' ? value.silentReminder : '')
           setRepeatLimitDraft(Number.isFinite(value.repeatLimit) && value.repeatLimit > 0 ? String(value.repeatLimit) : '')
           setRepeatActionDraft(value.repeatAction === 'stop' ? 'stop' : 'remind')
@@ -438,7 +438,7 @@ window.__ModuleLoader__.load({
         const staleReminder = staleReminderDraft.trim() === '' ? '' : staleReminderDraft
         const action = repeatActionDraft === 'stop' ? 'stop' : 'remind'
         const ops = [
-          stepsText === '' ? { op: 'unset', path: ['maxSilentSteps'] } : { op: 'set', path: ['maxSilentSteps'], value: steps },
+          stepsText === '' ? { op: 'unset', path: ['maxSilentSeconds'] } : { op: 'set', path: ['maxSilentSeconds'], value: steps },
           reminder === '' ? { op: 'unset', path: ['silentReminder'] } : { op: 'set', path: ['silentReminder'], value: reminder },
           limitText === '' ? { op: 'unset', path: ['repeatLimit'] } : { op: 'set', path: ['repeatLimit'], value: limit },
           action === 'remind' ? { op: 'unset', path: ['repeatAction'] } : { op: 'set', path: ['repeatAction'], value: action },
@@ -457,7 +457,7 @@ window.__ModuleLoader__.load({
           const view = takeView(landed, revision)
           setRevision(view.revision)
           if (view.value) {
-            setStepsDraft(Number.isFinite(view.value.maxSilentSteps) ? String(view.value.maxSilentSteps) : '')
+            setStepsDraft(Number.isFinite(view.value.maxSilentSeconds) ? String(view.value.maxSilentSeconds) : '')
             setReminderDraft(typeof view.value.silentReminder === 'string' ? view.value.silentReminder : '')
             setRepeatLimitDraft(Number.isFinite(view.value.repeatLimit) && view.value.repeatLimit > 0 ? String(view.value.repeatLimit) : '')
             setRepeatActionDraft(view.value.repeatAction === 'stop' ? 'stop' : 'remind')

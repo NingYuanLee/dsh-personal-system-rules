@@ -4,7 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { MAX_BYTES, readAgentsFile, writeAgentsFile } from './file.js'
-import { countRepeatSteps, staleTodoSteps } from './loop-guard.js'
+import { countRepeatSteps, silentMs, staleTodoSteps } from './loop-guard.js'
 
 /** Cordis plugin name. */
 export const name = 'system-agents-md'
@@ -14,7 +14,7 @@ export const inject = ['systemPrompt']
 
 const SECTION_NAME = 'user:agents-md'
 const DEFAULT_ORDER = 10150
-const DEFAULT_MAX_SILENT_STEPS = 2
+const DEFAULT_MAX_SILENT_SECONDS = 60
 const DEFAULT_MAX_STALE_TODO_STEPS = 6
 const DEFAULT_RULES_FILE = 'PERSONAL-SYSTEM-RULES.md'
 const DEFAULT_HEADER = [
@@ -23,8 +23,8 @@ const DEFAULT_HEADER = [
   '以下内容来自用户全局 PERSONAL-SYSTEM-RULES.md，是系统层指令，必须遵守；与项目内软性说明冲突时以本节为准。',
 ].join('\n')
 
-/** Default reminder used when consecutive steps carry no visible text. */
-const DEFAULT_SILENT_REMINDER = '你已经连续 {count} 步没有向用户说明进展。请在本步开头用一句话说明正在做什么、为什么，再继续调用工具。'
+/** Default reminder used when the model goes too long without visible text. */
+const DEFAULT_SILENT_REMINDER = '你已经 {count} 秒没有向用户说明进展。请在本步开头用一句话说明正在做什么、为什么，再继续调用工具。'
 
 /** Default reminder used when the same tool call repeats beyond the limit. */
 const DEFAULT_REPEAT_REMINDER = '你已经连续 {count} 步执行完全相同的操作。请停止重复：先说明当前阻塞和已完成的部分，再换一种做法；如果确实需要继续同一操作，请先向用户说明原因。'
@@ -41,7 +41,7 @@ const REMOTE_METHODS = '@deepseek-ai/dsh-typert-protocol/remote-methods'
 /**
  * Config schema projected into the DSH settings dialog.
  *
- * `file`, `maxSilentSteps` and `silentReminder` are `.volatile()`: that is what
+ * `file`, `maxSilentSeconds` and `silentReminder` are `.volatile()`: that is what
  * makes them editable from the GUI settings form (see volatileForm() in
  * @deepseek-ai/dsh-settings) and what lets a save apply without reloading the
  * plugin. The remaining fields stay ordinary config for cordis.patch.yml.
@@ -70,7 +70,7 @@ async function loadConfigSchema() {
     file: z.string().default(''),
     order: z.number().default(DEFAULT_ORDER),
     header: z.string().default(DEFAULT_HEADER),
-    maxSilentSteps: z.number().min(0).default(DEFAULT_MAX_SILENT_STEPS).volatile(),
+    maxSilentSeconds: z.number().min(0).default(DEFAULT_MAX_SILENT_SECONDS).volatile(),
     silentReminder: z.string().default('').volatile(),
     repeatLimit: z.number().min(0).default(0).volatile(),
     repeatAction: z.union([z.const('remind'), z.const('stop')]).default('remind').volatile(),
@@ -136,8 +136,8 @@ function resolveSettings(config = {}) {
   const file = typeof fileValue === 'string' && fileValue.trim() ? fileValue.trim() : join(dshHome(), DEFAULT_RULES_FILE)
   const order = Number.isFinite(Number(config.order)) ? Number(config.order) : DEFAULT_ORDER
   const header = typeof config.header === 'string' ? config.header : DEFAULT_HEADER
-  const stepsValue = Number(unwrapVolatile(config.maxSilentSteps))
-  const maxSilentSteps = Number.isFinite(stepsValue) ? Math.max(0, Math.floor(stepsValue)) : DEFAULT_MAX_SILENT_STEPS
+  const silentValue = Number(unwrapVolatile(config.maxSilentSeconds))
+  const maxSilentSeconds = Number.isFinite(silentValue) ? Math.max(0, Math.floor(silentValue)) : DEFAULT_MAX_SILENT_SECONDS
   const reminderValue = unwrapVolatile(config.silentReminder)
   const silentTemplate = typeof reminderValue === 'string' && reminderValue.trim() ? reminderValue : DEFAULT_SILENT_REMINDER
   const repeatLimitValue = Number(unwrapVolatile(config.repeatLimit))
@@ -153,7 +153,7 @@ function resolveSettings(config = {}) {
     file,
     order,
     header,
-    maxSilentSteps,
+    maxSilentSeconds,
     silentTemplate,
     repeatLimit,
     repeatAction,
@@ -279,39 +279,13 @@ function readRules(file) {
   }
 }
 
-/** Whether one assistant message carries visible text the user can read. */
-function hasVisibleText(message) {
-  const content = message?.content
-  if (!Array.isArray(content)) return false
-  return content.some((part) => part?.type === 'text' && String(part.text ?? '').trim() !== '')
-}
-
-/** Count trailing assistant steps without visible text since the last user turn. */
-function countSilentSteps(agent) {
-  const nodes = agent?.session?.surface?.nodes
-  if (!Array.isArray(nodes)) return 0
-  let count = 0
-  for (let index = nodes.length - 1; index >= 0; index -= 1) {
-    const event = agent.session.eventAt(nodes[index])
-    if (event === undefined) continue
-    if (event.type === 'assistant/message') {
-      if (hasVisibleText(event.data?.message)) return count
-      count += 1
-      continue
-    }
-    if (event.type === 'turn/start') return count
-    if (event.type === 'user/message' && event.data?.source?.kind === 'user') return count
-  }
-  return count
-}
-
 /**
  * Register the rules file as a global system-prompt section, keep it in sync
  * when the file or the volatile config changes, expose it to the settings and
- * detail pages, and nudge the model when it runs several steps without visible
- * text.
+ * detail pages, and nudge the model when it leaves the user without a word for
+ * too long.
  * @param {object} ctx - host plugin context.
- * @param {{file?: string, order?: number, header?: string, maxSilentSteps?: number, silentReminder?: string}} [config]
+ * @param {{file?: string, order?: number, header?: string, maxSilentSeconds?: number, silentReminder?: string}} [config]
  */
 export function apply(ctx, config = {}) {
   let current = resolveSettings(config)
@@ -367,11 +341,13 @@ export function apply(ctx, config = {}) {
   }, 'system-agents-md.section')
 
   // One pre-step hook drives three guards:
-  // - silent guard: consecutive steps without visible text;
+  // - silent guard: elapsed time since the last readable assistant text;
   // - loop guard: consecutive identical tool-call steps (remind, or stop the
   //   turn the way the user's own stop does, keeping queued input);
   // - stale-todo guard: a task list left with `in_progress` items that the
-  //   model has not rewritten for several steps.
+  //   model has not rewritten for several steps. The list is read from the
+  //   model's `todo_write` tool call: the `todo/write` session event the tool
+  //   appends is log-only and never reaches the surface the guards scan.
   // Settings edits are volatile, so `current` is read on every step. A guard
   // disabled with 0 resets its own per-agent state.
   const silentRemindedAt = new WeakMap()
@@ -384,18 +360,23 @@ export function apply(ctx, config = {}) {
     if (agent === undefined) return decision
     const additions = Array.isArray(decision.messages) ? [...decision.messages] : []
 
-    const silentLimit = current.maxSilentSteps
-    if (silentLimit <= 0) {
+    // Silent guard: wall-clock time since the last readable assistant text, so
+    // one long tool step cannot hide ten minutes of silence behind a single
+    // step, and quick steps do not nag before the user has waited a while.
+    // One reminder per `maxSilentSeconds` of further silence.
+    const silentLimitMs = current.maxSilentSeconds * 1000
+    if (silentLimitMs <= 0) {
       silentRemindedAt.delete(agent)
     } else {
-      const streak = countSilentSteps(agent)
-      if (streak < silentLimit) {
+      const silentFor = silentMs(agent)
+      if (silentFor < silentLimitMs) {
         silentRemindedAt.delete(agent)
-      } else if ((silentRemindedAt.get(agent) ?? 0) < streak) {
-        silentRemindedAt.set(agent, streak)
+      } else if (silentFor >= (silentRemindedAt.get(agent) ?? 0) + silentLimitMs) {
+        silentRemindedAt.set(agent, silentFor)
+        const seconds = Math.round(silentFor / 1000)
         additions.push(createUserMessage({
-          content: [{ type: 'text', text: current.silentTemplate.replaceAll('{count}', String(streak)) }],
-          source: { kind: 'system-agents-md', form: 'notice', summary: streak + ' steps without visible text' },
+          content: [{ type: 'text', text: current.silentTemplate.replaceAll('{count}', String(seconds)) }],
+          source: { kind: 'system-agents-md', form: 'notice', summary: seconds + ' seconds without visible text' },
         }))
       }
     }

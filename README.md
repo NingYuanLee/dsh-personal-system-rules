@@ -4,12 +4,12 @@
 
 把个性化规则文件注入 DeepSeek Harness（dsh）的**系统提示**，并提供**静默提醒**、**重复操作循环检测**与**任务状态守卫**；规则正文与守卫参数都能在设置弹窗「个性化规则」里编辑。
 
-A dsh plugin that injects a personal rules file as a system-prompt section and adds silent-step / repeated-action loop guards and a stale-todo guard. The rules body and guard options are editable from the dsh settings dialog.
+A dsh plugin that injects a personal rules file as a system-prompt section and adds a silent (elapsed-time) reminder, a repeated-action loop guard and a stale-todo guard. The rules body and guard options are editable from the dsh settings dialog.
 
 ## 功能
 
 1. **系统提示段**：把 `~/.dsh/PERSONAL-SYSTEM-RULES.md`（或 `config.file` 指定文件）注册成段 `user:agents-md`，order 默认 10150，原样注入；`watchFile` 1 秒轮询，改完下一次模型请求生效，不用重启。
-2. **静默提醒**：连续 `maxSilentSteps`（默认 2）步没有可见文本时，注入一条提醒要求模型说明进展；同一条链只提醒一次，`0` 关闭。
+2. **静默提醒**：距离上一次**可见文字**超过 `maxSilentSeconds`（默认 60 秒）时，注入一条提醒要求模型说明进展；同一段沉默每再满一个阈值提醒一次，`0` 关闭。判定用时长而不是步数：单个长耗时步骤不会再掩盖十分钟的沉默，两步之间的十几秒也不会提前打断。
 3. **循环检测**：连续 `repeatLimit` 步执行**完全相同**的工具调用（工具名 + 归一化参数）时触发，`repeatAction` 可选 `remind`（提醒）或 `stop`（像用户点停止一样中止本轮并保留排队输入）；默认 0 关闭。
 4. **任务状态守卫**：本轮的 todo 列表里还有 `in_progress` 项、且连续 `maxStaleTodoSteps`（默认 6）步没有重写列表时提醒一次，之后再每隔同样步数提醒；本轮没建列表（短任务）时不打扰，全部完成时也不触发。`0` 关闭。
 5. **设置弹窗页面**：`设置 → 个性化规则` 与插件详情页是同一个页面，含「规则正文」和「守卫」两块；保存经官方 `settings` 机制写回 profile patch 并热更新。
@@ -49,7 +49,7 @@ dsh plugin --profile my-profile add "https://github.com/NingYuanLee/dsh-personal
     header: |
       # 用户全局系统层规则
       以下内容来自用户全局 PERSONAL-SYSTEM-RULES.md，是系统层指令，必须遵守。
-    maxSilentSteps: 2
+    maxSilentSeconds: 60
     silentReminder: ''
     repeatLimit: 0
     repeatAction: remind
@@ -58,7 +58,8 @@ dsh plugin --profile my-profile add "https://github.com/NingYuanLee/dsh-personal
     staleTodoReminder: ''
 ```
 
-- `maxSilentSteps`、`silentReminder`、`repeatLimit`、`repeatAction`、`repeatReminder`、`maxStaleTodoSteps`、`staleTodoReminder` 是 `volatile()` 字段，可在设置弹窗编辑并热更新。
+- `maxSilentSeconds`、`silentReminder`、`repeatLimit`、`repeatAction`、`repeatReminder`、`maxStaleTodoSteps`、`staleTodoReminder` 是 `volatile()` 字段，可在设置弹窗编辑并热更新。
+- 0.7.0 起静默提醒按秒判定，旧的 `maxSilentSteps` 键不再生效（仍可留在 patch 里，会被忽略）；把阈值换成期望的秒数即可。
 - `file`、`header`、`order` 是普通配置，只在 `cordis.patch.yml` 里改；改 `file` 后需要重载插件。
 - `repeatLimit: 0` 关闭循环检测；文本回复或新用户轮次会重置重复计数。
 - `maxStaleTodoSteps: 0` 关闭任务状态守卫；提醒文案可含 `{count}`（未更新的步数）与 `{inProgress}`（进行中的项数）。

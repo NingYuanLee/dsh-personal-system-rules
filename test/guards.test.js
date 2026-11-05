@@ -31,6 +31,11 @@ function assistant(calls = [], texts = []) {
 const turnStart = { type: 'turn/start', data: {} }
 const enter = { kind: 'enter', messages: [] }
 
+/** Tag one surface event with its epoch-millisecond time. */
+function at(event, time) {
+  return { ...event, time }
+}
+
 function mount(config) {
   const handlers = {}
   const disposers = []
@@ -55,7 +60,7 @@ function mount(config) {
 }
 
 test('the loop guard adds one reminder once the repeat limit is reached', async () => {
-  const mounted = mount({ maxSilentSteps: 0, repeatLimit: 2, repeatAction: 'remind', repeatReminder: '重复 {count} 步了，换一种做法。' })
+  const mounted = mount({ maxSilentSeconds: 0, repeatLimit: 2, repeatAction: 'remind', repeatReminder: '重复 {count} 步了，换一种做法。' })
   try {
     const agent = fakeAgent([
       turnStart,
@@ -75,7 +80,7 @@ test('the loop guard adds one reminder once the repeat limit is reached', async 
 
 test('the loop guard stops the turn through agent.cancel when configured to stop', async () => {
   const calls = []
-  const mounted = mount({ maxSilentSteps: 0, repeatLimit: 2, repeatAction: 'stop' })
+  const mounted = mount({ maxSilentSeconds: 0, repeatLimit: 2, repeatAction: 'stop' })
   try {
     const agent = fakeAgent([
       turnStart,
@@ -93,23 +98,65 @@ test('the loop guard stops the turn through agent.cancel when configured to stop
 })
 
 test('the merged silent guard still reminds steps without visible text', async () => {
-  const mounted = mount({ maxSilentSteps: 2, repeatLimit: 0, silentReminder: '说明进展 {count}' })
+  const mounted = mount({ maxSilentSeconds: 60, repeatLimit: 0, silentReminder: '说明进展 {count}' })
   try {
-    const agent = fakeAgent([
-      turnStart,
-      assistant([['read', '{"file_path":"a.md"}']]),
-      assistant([['read', '{"file_path":"a.md"}']]),
+    const now = Date.now()
+    const quiet = fakeAgent([
+      at(turnStart, now - 5 * 60_000),
+      at(assistant([['read', '{"file_path":"a.md"}']]), now - 4 * 60_000),
     ])
-    const decision = await mounted.preStep(agent)
+    const decision = await mounted.preStep(quiet)
     assert.equal(decision.messages.length, 1)
-    assert.match(decision.messages[0].content[0].text, /说明进展 2/)
+    assert.match(decision.messages[0].content[0].text, /说明进展 30[0-9]/)
+
+    const narrated = fakeAgent([
+      at(turnStart, now - 5 * 60_000),
+      at(assistant([['read', '{"file_path":"a.md"}']], ['先看现状']), now - 5_000),
+    ])
+    assert.equal((await mounted.preStep(narrated)).messages.length, 0, 'a visible line resets the silence')
   } finally {
     mounted.dispose()
   }
 })
 
+test('the silent guard stays quiet while the user has waited less than the limit', async () => {
+  const mounted = mount({ maxSilentSeconds: 60, repeatLimit: 0 })
+  try {
+    const now = Date.now()
+    const quick = fakeAgent([
+      at(turnStart, now - 10_000),
+      at(assistant([['read', '{"file_path":"a.md"}']]), now - 9_000),
+      at(assistant([['read', '{"file_path":"b.md"}']]), now - 8_000),
+    ])
+    assert.equal((await mounted.preStep(quick)).messages.length, 0, 'two quick steps are not a silence')
+  } finally {
+    mounted.dispose()
+  }
+})
+
+test('the silent guard reminds once per further interval of silence', async () => {
+  const mounted = mount({ maxSilentSeconds: 60, repeatLimit: 0 })
+  try {
+    const now = Date.now()
+    const visible = at(assistant([['read', '{"file_path":"a.md"}']], ['先说一句']), now - 61_000)
+    const agent = growingAgent([
+      at(turnStart, now - 70_000),
+      visible,
+      at(assistant([['read', '{"file_path":"b.md"}']]), now - 60_000),
+    ])
+    assert.equal((await mounted.preStep(agent)).messages.length, 1, '61 s of silence crosses the limit')
+    assert.equal((await mounted.preStep(agent)).messages.length, 0, 'the same interval is not repeated')
+
+    visible.time -= 60_000
+    assert.equal((await mounted.preStep(agent)).messages.length, 1, 'another full interval reminds again')
+  } finally {
+    mounted.dispose()
+  }
+})
+
+/** One assistant step whose `todo_write` call carries the complete list. */
 function todoWrite(todos) {
-  return { type: 'todo/write', data: { todos } }
+  return assistant([['todo_write', JSON.stringify({ todos })]])
 }
 
 /** Agent whose surface tracks an events array that the test keeps growing. */
@@ -131,7 +178,7 @@ const staleList = todoWrite([
 ])
 
 test('the stale-todo guard reminds once the in-progress list has not moved for the limit', async () => {
-  const mounted = mount({ maxSilentSteps: 0, repeatLimit: 0, maxStaleTodoSteps: 2, staleTodoReminder: '有 {inProgress} 项进行中，已 {count} 步没更新' })
+  const mounted = mount({ maxSilentSeconds: 0, repeatLimit: 0, maxStaleTodoSteps: 2, staleTodoReminder: '有 {inProgress} 项进行中，已 {count} 步没更新' })
   try {
     const early = fakeAgent([turnStart, staleList, assistant([['read', '{"file_path":"a.md"}']])])
     assert.equal((await mounted.preStep(early)).messages.length, 0, 'below the limit')
@@ -154,7 +201,7 @@ test('the stale-todo guard reminds once the in-progress list has not moved for t
 })
 
 test('the stale-todo guard stays quiet for a finished list or an unwritten one', async () => {
-  const mounted = mount({ maxSilentSteps: 0, repeatLimit: 0, maxStaleTodoSteps: 1 })
+  const mounted = mount({ maxSilentSeconds: 0, repeatLimit: 0, maxStaleTodoSteps: 1 })
   try {
     const finished = fakeAgent([
       turnStart,
@@ -175,8 +222,23 @@ test('the stale-todo guard stays quiet for a finished list or an unwritten one',
   }
 })
 
+test('the stale-todo guard ignores a log-only todo/write event outside the surface', async () => {
+  const mounted = mount({ maxSilentSeconds: 0, repeatLimit: 0, maxStaleTodoSteps: 1 })
+  try {
+    const agent = fakeAgent([
+      turnStart,
+      { type: 'todo/write', data: { todos: [{ content: 'a', status: 'in_progress' }] } },
+      assistant([['read', '{"file_path":"a.md"}']]),
+      assistant([['read', '{"file_path":"b.md"}']]),
+    ])
+    assert.equal((await mounted.preStep(agent)).messages.length, 0, 'the event never reaches the surface')
+  } finally {
+    mounted.dispose()
+  }
+})
+
 test('the stale-todo guard reminds again only after another full chunk', async () => {
-  const mounted = mount({ maxSilentSteps: 0, repeatLimit: 0, maxStaleTodoSteps: 2 })
+  const mounted = mount({ maxSilentSeconds: 0, repeatLimit: 0, maxStaleTodoSteps: 2 })
   try {
     const events = [turnStart, staleList, assistant([['read', '{"file_path":"a.md"}']]), assistant([['read', '{"file_path":"b.md"}']])]
     const agent = growingAgent(events)

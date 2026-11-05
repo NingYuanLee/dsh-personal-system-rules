@@ -10,7 +10,7 @@ test('settings fields resolve to live-editable refs with the documented defaults
   const out = Config['~standard'].validate({})
   assert.equal(out.issues, undefined)
   assert.equal(out.value.file, '')
-  assert.equal(out.value.maxSilentSteps.get(), 2)
+  assert.equal(out.value.maxSilentSeconds.get(), 60)
   assert.equal(out.value.silentReminder.get(), '')
   assert.equal(out.value.repeatLimit.get(), 0)
   assert.equal(out.value.repeatAction.get(), 'remind')
@@ -21,7 +21,7 @@ test('settings fields resolve to live-editable refs with the documented defaults
 test('a config snapshot keeps explicit values and refs for the volatile fields', { skip }, () => {
   const out = Config['~standard'].validate({
     file: 'C:/rules/PERSONAL-SYSTEM-RULES.md',
-    maxSilentSteps: 3,
+    maxSilentSeconds: 90,
     silentReminder: '继续说明进展',
     repeatLimit: 4,
     repeatAction: 'stop',
@@ -29,7 +29,7 @@ test('a config snapshot keeps explicit values and refs for the volatile fields',
   })
   assert.equal(out.issues, undefined)
   assert.equal(out.value.file, 'C:/rules/PERSONAL-SYSTEM-RULES.md')
-  assert.equal(out.value.maxSilentSteps.get(), 3)
+  assert.equal(out.value.maxSilentSeconds.get(), 90)
   assert.equal(out.value.silentReminder.get(), '继续说明进展')
   assert.equal(out.value.repeatLimit.get(), 4)
   assert.equal(out.value.repeatAction.get(), 'stop')

@@ -1,5 +1,20 @@
 # 更新日志
 
+## 0.7.0 — 2026-11-05
+
+- 静默守卫从「步数」改为「时长」：新增 `maxSilentSeconds`（默认 60 秒，`0` 关闭），按最后一条可见文字消息到当前时刻的间隔判定，同一段沉默每再满一个阈值提醒一次。提醒文案的 `{count}` 现在是秒数。
+- 原因（会话 `session-2debd25a` 实测 258 个 step、43 次提醒）：43 次里有 41 次发生在距上次说明不足 60 秒（中位 18 秒、最小 7 秒），而 18 个「已沉默 ≥60 秒」的 step 中有 16 个完全没提醒，最长沉默 629 秒。步数口径既太快打断，也看不见单步长耗时造成的长时间沉默。
+- 新增纯函数 `silentMs(agent, now)`（读 surface 事件自带的时间戳，无可见文字时回落到本轮起点），`test/loop-guard.test.js` 覆盖测量与回落，`test/guards.test.js` 覆盖阈值、重置与分段提醒。
+- 设置页字段改为「多久没有可见输出就提醒（秒）」，中英文案、README、locale 描述同步。
+- 旧的 `maxSilentSteps` 键保留在 profile 里也无害（schemastery 不报未知键），但不再生效；迁移时换成期望的秒数。
+
+## 0.6.1 — 2026-11-05
+
+- 修复任务状态守卫从不触发的问题：`staleTodoSteps()` 原先在 `session.surface.nodes` 里查找 `todo/write` 事件，但 surface 只承载消息类事件（`system`/`developer`/`user`/`assistant` 消息与 `tool/result`），`todo/write` 是仅落日志的事件，永远不会出现在 surface 上，于是每步都被判成「本轮没写列表」，守卫一直静默。
+- 改为读取 assistant 消息里模型自己的 `todo_write` 工具调用（`arguments.todos`）作为列表来源，步数从最近一次该调用算起；日志里的 `todo/write` 事件不再参与判断。
+- 回放会话 `session-2debd25a` 的真实 surface：修复前注入 0 次，修复后在第 6/12/18/24/30/36 步各注入一次。
+- `test/loop-guard.test.js`、`test/guards.test.js` 的用例改为真实形状（`todo_write` 工具调用），并新增「仅落日志的 `todo/write` 事件不构成列表」「以最近一次调用为准」「非法 arguments 不误判」三个回归用例。
+
 ## 0.6.0 — 2026-11-04
 
 - 新增任务状态守卫：本轮的 todo 列表里还有 `in_progress` 项、且连续 `maxStaleTodoSteps` 步没有重写列表时，经 `agent/pre-step` 注入一条提醒；之后每再累积同样步数提醒一次。默认 6 步，`0` 关闭。

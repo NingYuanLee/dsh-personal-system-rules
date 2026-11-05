@@ -8,7 +8,7 @@ const PKG = "dsh-personal-system-rules";
 const SETTINGS_NS = "system-agents-md";
 const READ = "systemAgentsMd/read";
 const WRITE = "systemAgentsMd/write";
-const DEFAULT_REMINDER = "\u4F60\u5DF2\u7ECF\u8FDE\u7EED {count} \u6B65\u6CA1\u6709\u5411\u7528\u6237\u8BF4\u660E\u8FDB\u5C55\u3002\u8BF7\u5728\u672C\u6B65\u5F00\u5934\u7528\u4E00\u53E5\u8BDD\u8BF4\u660E\u6B63\u5728\u505A\u4EC0\u4E48\u3001\u4E3A\u4EC0\u4E48\uFF0C\u518D\u7EE7\u7EED\u8C03\u7528\u5DE5\u5177\u3002";
+const DEFAULT_REMINDER = "\u4F60\u5DF2\u7ECF {count} \u79D2\u6CA1\u6709\u5411\u7528\u6237\u8BF4\u660E\u8FDB\u5C55\u3002\u8BF7\u5728\u672C\u6B65\u5F00\u5934\u7528\u4E00\u53E5\u8BDD\u8BF4\u660E\u6B63\u5728\u505A\u4EC0\u4E48\u3001\u4E3A\u4EC0\u4E48\uFF0C\u518D\u7EE7\u7EED\u8C03\u7528\u5DE5\u5177\u3002";
 const DEFAULT_REPEAT_REMINDER = "\u4F60\u5DF2\u7ECF\u8FDE\u7EED {count} \u6B65\u6267\u884C\u5B8C\u5168\u76F8\u540C\u7684\u64CD\u4F5C\u3002\u8BF7\u505C\u6B62\u91CD\u590D\uFF1A\u5148\u8BF4\u660E\u5F53\u524D\u963B\u585E\u548C\u5DF2\u5B8C\u6210\u7684\u90E8\u5206\uFF0C\u518D\u6362\u4E00\u79CD\u505A\u6CD5\uFF1B\u5982\u679C\u786E\u5B9E\u9700\u8981\u7EE7\u7EED\u540C\u4E00\u64CD\u4F5C\uFF0C\u8BF7\u5148\u5411\u7528\u6237\u8BF4\u660E\u539F\u56E0\u3002";
 const DEFAULT_STALE_TODO_REMINDER = "\u4EFB\u52A1\u5217\u8868\u91CC\u6709 {inProgress} \u9879\u4ECD\u6807\u7740\u8FDB\u884C\u4E2D\uFF0C\u4F46\u5DF2\u8FDE\u7EED {count} \u6B65\u6CA1\u6709\u66F4\u65B0\u3002\u8BF7\u91CD\u5199 todo \u5217\u8868\uFF1A\u628A\u5DF2\u5B8C\u6210\u7684\u9879\u6807\u6210 completed\uFF0C\u53EA\u7559\u4E0B\u771F\u6B63\u5728\u505A\u7684\u4E00\u9879\uFF0C\u518D\u7EE7\u7EED\u3002";
 const zh = {
@@ -20,10 +20,10 @@ const zh = {
   rulesTitle: "\u89C4\u5219\u6B63\u6587",
   guardTitle: "\u5B88\u536B",
   silentTitle: "\u9759\u9ED8\u63D0\u9192",
-  guardStepsLabel: "\u8FDE\u7EED\u65E0\u53EF\u89C1\u6587\u672C\u7684\u6B65\u6570\u9608\u503C",
-  guardStepsHint: "\u8FBE\u5230\u8BE5\u6B65\u6570\u65F6\u63D0\u9192\u4E00\u6B21\uFF1B0 \u8868\u793A\u5173\u95ED\u3002\u9ED8\u8BA4 2\u3002",
+  guardStepsLabel: "\u591A\u4E45\u6CA1\u6709\u53EF\u89C1\u8F93\u51FA\u5C31\u63D0\u9192\uFF08\u79D2\uFF09",
+  guardStepsHint: "\u8FBE\u5230\u8BE5\u65F6\u957F\u65F6\u63D0\u9192\u4E00\u6B21\uFF0C\u4E4B\u540E\u6BCF\u518D\u6EE1\u540C\u6837\u65F6\u957F\u63D0\u9192\u4E00\u6B21\uFF1B0 \u8868\u793A\u5173\u95ED\u3002\u9ED8\u8BA4 60 \u79D2\u3002",
   guardReminderLabel: "\u63D0\u9192\u6587\u6848",
-  guardReminderHint: "\u53EF\u7528 {count} \u8868\u793A\u5F53\u524D\u8FDE\u7EED\u6B65\u6570\uFF1B\u7559\u7A7A\u4F7F\u7528\u9ED8\u8BA4\u6587\u6848\u3002",
+  guardReminderHint: "\u53EF\u7528 {count} \u8868\u793A\u5F53\u524D\u5DF2\u9759\u9ED8\u7684\u79D2\u6570\uFF1B\u7559\u7A7A\u4F7F\u7528\u9ED8\u8BA4\u6587\u6848\u3002",
   loopTitle: "\u5FAA\u73AF\u68C0\u6D4B",
   loopLimitLabel: "\u540C\u4E00\u64CD\u4F5C\u7684\u6700\u5927\u91CD\u590D\u6B21\u6570",
   loopLimitHint: "\u8FDE\u7EED\u8FD9\u4E48\u591A\u6B65\u6267\u884C\u5B8C\u5168\u76F8\u540C\u7684\u5DE5\u5177\u8C03\u7528\u65F6\u89E6\u53D1\uFF1B0 \u8868\u793A\u5173\u95ED\uFF0C\u9ED8\u8BA4\u5173\u95ED\u3002",
@@ -46,7 +46,7 @@ const zh = {
   optionsMissing: "\u6CA1\u6709\u627E\u5230\u8FD9\u4E2A\u63D2\u4EF6\u7684\u8BBE\u7F6E\u547D\u540D\u7A7A\u95F4\uFF0C\u5148\u6309\u9ED8\u8BA4\u503C\u663E\u793A\u3002",
   optionsLoadFailed: "\u8BFB\u53D6\u5DF2\u4FDD\u5B58\u914D\u7F6E\u5931\u8D25\uFF0C\u5148\u6309\u9ED8\u8BA4\u503C\u663E\u793A\uFF1A{message}",
   optionsFailed: "\u4FDD\u5B58\u5931\u8D25\uFF1A{message}",
-  invalidSteps: "\u6B65\u6570\u9608\u503C\u5FC5\u987B\u662F\u4E0D\u5C0F\u4E8E 0 \u7684\u6574\u6570\u3002",
+  invalidSteps: "\u9759\u9ED8\u9608\u503C\u5FC5\u987B\u662F\u4E0D\u5C0F\u4E8E 0 \u7684\u6574\u6570\uFF08\u79D2\uFF09\u3002",
   reload: "\u91CD\u65B0\u8BFB\u53D6",
   save: "\u4FDD\u5B58",
   saving: "\u4FDD\u5B58\u4E2D",
@@ -71,11 +71,11 @@ const en = {
   effective: "Effective file",
   rulesTitle: "Rules body",
   guardTitle: "Guards",
-  silentTitle: "Silent-step reminder",
-  guardStepsLabel: "Consecutive steps without visible text",
-  guardStepsHint: "Reminds once when reached; 0 disables it. Default 2.",
+  silentTitle: "Silent reminder",
+  guardStepsLabel: "Seconds without visible output before reminding",
+  guardStepsHint: "Reminds once when reached, then once per further interval; 0 disables it. Default 60 seconds.",
   guardReminderLabel: "Reminder text",
-  guardReminderHint: "Use {count} for the current streak; leave blank for the default.",
+  guardReminderHint: "Use {count} for the seconds of silence; leave blank for the default.",
   loopTitle: "Loop detection",
   loopLimitLabel: "Maximum repeats of the same action",
   loopLimitHint: "Triggers after this many consecutive identical tool-call steps; 0 disables it (default).",
@@ -98,7 +98,7 @@ const en = {
   optionsMissing: "This plugin has no settings namespace here; showing defaults.",
   optionsLoadFailed: "Failed to read the saved config; showing defaults: {message}",
   optionsFailed: "Save failed: {message}",
-  invalidSteps: "The step threshold must be an integer of 0 or more.",
+  invalidSteps: "The silence threshold must be an integer of 0 or more (seconds).",
   reload: "Reload",
   save: "Save",
   saving: "Saving",
@@ -177,7 +177,7 @@ function findSettingsRow(found) {
   if (exact) return exact;
   return rows.find((row) => {
     const value = row?.value && typeof row.value === "object" ? row.value : row;
-    return value !== null && typeof value === "object" && (typeof value.maxSilentSteps === "number" || typeof value.silentReminder === "string");
+    return value !== null && typeof value === "object" && (typeof value.maxSilentSeconds === "number" || typeof value.silentReminder === "string");
   }) ?? null;
 }
 function takeView(landed, fallbackRevision) {
@@ -282,7 +282,7 @@ function RulesSection(props) {
       }
       const value = row.value && typeof row.value === "object" && !Array.isArray(row.value) ? row.value : {};
       setConfigNs(typeof row.ns === "string" && row.ns ? row.ns : SETTINGS_NS);
-      setStepsDraft(Number.isFinite(value.maxSilentSteps) ? String(value.maxSilentSteps) : "");
+      setStepsDraft(Number.isFinite(value.maxSilentSeconds) ? String(value.maxSilentSeconds) : "");
       setReminderDraft(typeof value.silentReminder === "string" ? value.silentReminder : "");
       setRepeatLimitDraft(Number.isFinite(value.repeatLimit) && value.repeatLimit > 0 ? String(value.repeatLimit) : "");
       setRepeatActionDraft(value.repeatAction === "stop" ? "stop" : "remind");
@@ -402,7 +402,7 @@ function RulesSection(props) {
     const staleReminder = staleReminderDraft.trim() === "" ? "" : staleReminderDraft;
     const action = repeatActionDraft === "stop" ? "stop" : "remind";
     const ops = [
-      stepsText === "" ? { op: "unset", path: ["maxSilentSteps"] } : { op: "set", path: ["maxSilentSteps"], value: steps },
+      stepsText === "" ? { op: "unset", path: ["maxSilentSeconds"] } : { op: "set", path: ["maxSilentSeconds"], value: steps },
       reminder === "" ? { op: "unset", path: ["silentReminder"] } : { op: "set", path: ["silentReminder"], value: reminder },
       limitText === "" ? { op: "unset", path: ["repeatLimit"] } : { op: "set", path: ["repeatLimit"], value: limit },
       action === "remind" ? { op: "unset", path: ["repeatAction"] } : { op: "set", path: ["repeatAction"], value: action },
@@ -421,7 +421,7 @@ function RulesSection(props) {
       const view = takeView(landed, revision);
       setRevision(view.revision);
       if (view.value) {
-        setStepsDraft(Number.isFinite(view.value.maxSilentSteps) ? String(view.value.maxSilentSteps) : "");
+        setStepsDraft(Number.isFinite(view.value.maxSilentSeconds) ? String(view.value.maxSilentSeconds) : "");
         setReminderDraft(typeof view.value.silentReminder === "string" ? view.value.silentReminder : "");
         setRepeatLimitDraft(Number.isFinite(view.value.repeatLimit) && view.value.repeatLimit > 0 ? String(view.value.repeatLimit) : "");
         setRepeatActionDraft(view.value.repeatAction === "stop" ? "stop" : "remind");
