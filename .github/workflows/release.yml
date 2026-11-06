@@ -7,9 +7,9 @@ on:
 
 permissions:
   contents: write
-
-env:
-  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  # npm trusted publishing (OIDC): short-lived, workflow-scoped publish credentials.
+  # Without an NPM_TOKEN secret the publish step authenticates via OIDC instead.
+  id-token: write
 
 jobs:
   release:
@@ -49,12 +49,16 @@ jobs:
               --generate-notes \
               "${FLAGS[@]}"
           gh release upload "$GITHUB_REF_NAME" "dsh-personal-system-rules-$VERSION.tgz" --clobber
-      - name: Publish to npm when a token is configured
+      - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "NPM_TOKEN is not configured; skipping npm publish."
+          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "Publishing with the NPM_TOKEN secret."
+          elif [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] && [ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
+            echo "Publishing with npm trusted publishing (OIDC)."
+          else
+            echo "No NPM_TOKEN secret and no OIDC id-token available; skipping npm publish."
             exit 0
           fi
           npm publish
