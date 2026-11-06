@@ -28,13 +28,13 @@ dsh plugin --profile my-profile add dsh-personal-system-rules
 **从 git（固定 tag）：**
 
 ```powershell
-dsh plugin --profile my-profile add "git+https://github.com/NingYuanLee/dsh-personal-system-rules.git#v0.6.0"
+dsh plugin --profile my-profile add "git+https://github.com/NingYuanLee/dsh-personal-system-rules.git#v0.7.0"
 ```
 
 **从 GitHub Release tarball：**
 
 ```powershell
-dsh plugin --profile my-profile add "https://github.com/NingYuanLee/dsh-personal-system-rules/releases/download/v0.6.0/dsh-personal-system-rules-0.6.0.tgz"
+dsh plugin --profile my-profile add "https://github.com/NingYuanLee/dsh-personal-system-rules/releases/download/v0.7.0/dsh-personal-system-rules-0.7.0.tgz"
 ```
 
 包没有 `prepare` / `postinstall` 脚本，安装不执行构建代码。

@@ -8,7 +8,7 @@
 - 设置页字段改为「多久没有可见输出就提醒（秒）」，中英文案、README、locale 描述同步。
 - 旧的 `maxSilentSteps` 键保留在 profile 里也无害（schemastery 不报未知键），但不再生效；迁移时换成期望的秒数。
 
-## 0.6.1 — 2026-11-05
+## 0.6.1 — 2026-11-05（未单独发布，修复随 0.7.0 一同发布到 npm）
 
 - 修复任务状态守卫从不触发的问题：`staleTodoSteps()` 原先在 `session.surface.nodes` 里查找 `todo/write` 事件，但 surface 只承载消息类事件（`system`/`developer`/`user`/`assistant` 消息与 `tool/result`），`todo/write` 是仅落日志的事件，永远不会出现在 surface 上，于是每步都被判成「本轮没写列表」，守卫一直静默。
 - 改为读取 assistant 消息里模型自己的 `todo_write` 工具调用（`arguments.todos`）作为列表来源，步数从最近一次该调用算起；日志里的 `todo/write` 事件不再参与判断。
