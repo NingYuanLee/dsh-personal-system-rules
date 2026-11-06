@@ -1,5 +1,11 @@
 # 更新日志
 
+## 0.7.2 — 2026-11-06
+
+- 发布链路改用 npm Trusted Publishing（OIDC）：GitHub Actions 打 tag 后由 npm 签发短时发布凭据，仓库不再需要保存任何长期 npm 令牌，npm 同时自动附带 provenance。
+- `release.yml` 的发布步骤改为三态：有 `NPM_TOKEN` secret 用 secret，有 OIDC 走 OIDC，两者都没有才跳过；原有 GitHub Release 与 tgz 产出不变。
+- 无功能变更：与 `0.7.1` 相同。
+
 ## 0.7.1 — 2026-11-06
 
 - 补齐 GitHub 发布：`v0.6.0`、`v0.7.0` 两个 tag、对应 Release 与 tgz 安装包此前都缺失，只补了 `v0.5.0`；本次补推两个 tag，并更新 README 的安装示例指向 `v0.7.0`（原先写的 `v0.6.0` 链接当时是死链）。
