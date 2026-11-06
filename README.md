@@ -1,6 +1,6 @@
 # dsh-personal-system-rules
 
-[![CI](https://github.com/NingYuanLee/dsh-personal-system-rules/actions/workflows/ci.yml/badge.svg)](https://github.com/NingYuanLee/dsh-personal-system-rules/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/dsh-personal-system-rules.svg)](https://www.npmjs.com/package/dsh-personal-system-rules) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/NingYuanLee/dsh-personal-system-rules/actions/workflows/ci.yml/badge.svg)](https://github.com/NingYuanLee/dsh-personal-system-rules/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/dsh-personal-system-rules.svg)](https://www.npmjs.com/package/dsh-personal-system-rules) [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE) [![Node >=22.19](https://img.shields.io/badge/node-%3E%3D22.19.0-339933.svg)](#兼容性) [![dsh](https://img.shields.io/badge/dsh-%3E%3D0.2.1--rc.2%20%3C0.3.0--0%20%7C%7C%20%3E%3D0.2.2--0%20%3C0.3.0--0-6f42c1)](#兼容性) [![topic: dsh-plugin](https://img.shields.io/badge/topic-dsh--plugin-6f42c1.svg)](https://github.com/topics/dsh-plugin) [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
 
 把个性化规则文件注入 DeepSeek Harness（dsh）的**系统提示**，并提供**静默提醒**、**重复操作循环检测**与**任务状态守卫**；规则正文与守卫参数都能在设置弹窗「个性化规则」里编辑。
 
@@ -68,7 +68,8 @@ dsh plugin --profile my-profile add "https://github.com/NingYuanLee/dsh-personal
 ## 兼容性
 
 - Node.js `>=22.19.0`。
-- dsh `>=0.2.1-rc.2 <0.3.0-0`。
+- dsh `>=0.2.1-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0`。
+- 已在 dsh `0.2.2-rc.1` 上验证加载与全部测试。
 - 极简预设不生效（该预设把系统提示截成一句）；插件停用或加载失败时不注入任何内容。
 
 ## 开发

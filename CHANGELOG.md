@@ -1,5 +1,10 @@
 # 更新日志
 
+## 0.7.3 — 2026-11-06
+
+- 把 `engines.dsh` 放宽为 `>=0.2.1-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0`，让声明区间覆盖本插件实测通过的 DSH 0.2.2 预发布线；原单区间写法会排除 0.2.2 预发布，而 peer 区间本就接受它。运行时无改动。
+- 统一 README 徽章行（CI、npm、MIT 许可、Node、dsh 区间、`dsh-plugin` topic、powered by dsh），并让兼容性说明与声明区间一致。
+
 ## 0.7.2 — 2026-11-06
 
 - 发布链路改用 npm Trusted Publishing（OIDC）：GitHub Actions 打 tag 后由 npm 签发短时发布凭据，仓库不再需要保存任何长期 npm 令牌，npm 同时自动附带 provenance。
