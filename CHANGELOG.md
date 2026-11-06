@@ -1,5 +1,10 @@
 # 更新日志
 
+## 未发布（Unreleased）
+
+- 发布链路彻底去掉 npm 令牌：`release.yml` 的发布步骤不再读取 `secrets.NPM_TOKEN`，只用 npm 官方推荐的 trusted publishing (OIDC)——npm 用工作流的 OIDC id-token 换短时发布凭据，仓库里不再保存任何长期令牌，npm 同时自动附带 provenance。
+- 前提：npmjs.com 的包 Settings → Trusted publishing 需登记 Organization/user = `NingYuanLee`、Repository = `dsh-personal-system-rules`、Workflow filename = `release.yml`、Environment 留空。GitHub Release 与 tgz 产出不变，无运行时改动。
+
 ## 0.7.3 — 2026-11-06
 
 - 把 `engines.dsh` 放宽为 `>=0.2.1-rc.2 <0.3.0-0 || >=0.2.2-0 <0.3.0-0`，让声明区间覆盖本插件实测通过的 DSH 0.2.2 预发布线；原单区间写法会排除 0.2.2 预发布，而 peer 区间本就接受它。运行时无改动。

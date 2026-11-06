@@ -7,8 +7,8 @@ on:
 
 permissions:
   contents: write
-  # npm trusted publishing (OIDC): short-lived, workflow-scoped publish credentials.
-  # Without an NPM_TOKEN secret the publish step authenticates via OIDC instead.
+  # npm trusted publishing (OIDC): npm issues short-lived, workflow-scoped publish
+  # credentials from this permission, so no npm token secret is needed.
   id-token: write
 
 jobs:
@@ -49,16 +49,13 @@ jobs:
               --generate-notes \
               "${FLAGS[@]}"
           gh release upload "$GITHUB_REF_NAME" "dsh-personal-system-rules-$VERSION.tgz" --clobber
-      - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -n "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "Publishing with the NPM_TOKEN secret."
-          elif [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] && [ -n "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
-            echo "Publishing with npm trusted publishing (OIDC)."
-          else
-            echo "No NPM_TOKEN secret and no OIDC id-token available; skipping npm publish."
-            exit 0
-          fi
-          npm publish
+      - name: Publish to npm (trusted publishing, OIDC)
+        # npm trusted publishing: npm exchanges the workflow's OIDC id-token for
+        # short-lived publish credentials, so no npm token is stored anywhere.
+        # Requires a trusted publisher on npmjs.com -> Packages ->
+        # dsh-personal-system-rules -> Settings -> Trusted publishing:
+        #   Organization/user : NingYuanLee
+        #   Repository        : dsh-personal-system-rules
+        #   Workflow filename : release.yml
+        #   Environment name  : (leave empty)
+        run: npm publish
